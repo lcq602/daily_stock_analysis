@@ -612,6 +612,32 @@ def _build_schedule_time_provider(default_schedule_time: str):
     return _provider
 
 
+def _apply_schedule_timezone(schedule_timezone: str) -> None:
+    """Apply requested scheduler timezone to current process if supported."""
+    requested_tz = (schedule_timezone or "").strip()
+    if not requested_tz:
+        return
+
+    try:
+        from zoneinfo import ZoneInfo
+
+        ZoneInfo(requested_tz)
+    except Exception as exc:
+        logger.warning("SCHEDULE_TIMEZONE=%s 无效，继续使用系统时区: %s", requested_tz, exc)
+        return
+
+    if not hasattr(time, "tzset"):
+        logger.warning("当前平台不支持 time.tzset()，SCHEDULE_TIMEZONE=%s 未生效", requested_tz)
+        return
+
+    try:
+        os.environ["TZ"] = requested_tz
+        time.tzset()
+        logger.info("定时任务时区已设置为: %s", requested_tz)
+    except Exception as exc:
+        logger.warning("应用 SCHEDULE_TIMEZONE=%s 失败，继续使用系统时区: %s", requested_tz, exc)
+
+
 def main() -> int:
     """
     主入口函数
@@ -771,6 +797,7 @@ def main() -> int:
         # 模式2: 定时任务模式
         if args.schedule or config.schedule_enabled:
             logger.info("模式: 定时任务")
+            _apply_schedule_timezone(config.schedule_timezone)
             logger.info(f"每日执行时间: {config.schedule_time}")
 
             # Determine whether to run immediately:

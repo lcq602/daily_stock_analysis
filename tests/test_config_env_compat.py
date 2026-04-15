@@ -194,6 +194,44 @@ class ConfigEnvCompatibilityTestCase(unittest.TestCase):
         self.assertEqual(config.max_workers, 3)
         self.assertEqual(config.webui_port, 8000)
 
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_deepseek_keys_fallback_to_openai_keys_when_base_url_is_deepseek(
+        self,
+        _mock_parse_yaml,
+        _mock_setup_env,
+    ) -> None:
+        env = {
+            "OPENAI_BASE_URL": "https://api.deepseek.com/v1",
+            "OPENAI_API_KEY": "sk-openai-compatible-deepseek",
+        }
+
+        with patch.dict(os.environ, env, clear=True):
+            config = Config._load_from_env()
+
+        self.assertEqual(
+            config.deepseek_api_keys,
+            ["sk-openai-compatible-deepseek"],
+        )
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_schedule_timezone_reads_env_value(
+        self,
+        _mock_parse_yaml,
+        _mock_setup_env,
+    ) -> None:
+        with patch.dict(
+            os.environ,
+            {
+                "SCHEDULE_TIMEZONE": "Asia/Shanghai",
+            },
+            clear=True,
+        ):
+            config = Config._load_from_env()
+
+        self.assertEqual(config.schedule_timezone, "Asia/Shanghai")
+
 
 if __name__ == "__main__":
     unittest.main()

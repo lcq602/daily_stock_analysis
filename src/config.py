@@ -649,6 +649,7 @@ class Config:
     # === 定时任务配置 ===
     schedule_enabled: bool = False            # 是否启用定时任务
     schedule_time: str = "18:00"              # 每日推送时间（HH:MM 格式）
+    schedule_timezone: str = ""               # 定时任务时区（IANA，例如 Asia/Shanghai）；留空使用系统时区
     schedule_run_immediately: bool = True     # 启动时是否立即执行一次
     run_immediately: bool = True              # 启动时是否立即执行一次（非定时模式）
     market_review_enabled: bool = True        # 是否启用大盘复盘
@@ -895,6 +896,8 @@ class Config:
             if _fallback_key:
                 openai_api_keys = [_fallback_key]
 
+        openai_base_url_env = (os.getenv('OPENAI_BASE_URL') or '').strip()
+
         # DEEPSEEK_API_KEYS > DEEPSEEK_API_KEY (independent from OpenAI-compatible layer)
         _deepseek_keys_raw = os.getenv('DEEPSEEK_API_KEYS', '')
         deepseek_api_keys = [k.strip() for k in _deepseek_keys_raw.split(',') if k.strip()]
@@ -902,6 +905,14 @@ class Config:
             _single_deepseek = os.getenv('DEEPSEEK_API_KEY', '').strip()
             if _single_deepseek:
                 deepseek_api_keys = [_single_deepseek]
+        # Compatibility fallback: many users place DeepSeek keys under the
+        # OpenAI-compatible layer while pointing OPENAI_BASE_URL to DeepSeek.
+        if (
+            not deepseek_api_keys
+            and openai_api_keys
+            and "deepseek.com" in (openai_base_url_env or "").lower()
+        ):
+            deepseek_api_keys = list(openai_api_keys)
 
         # LITELLM_MODEL: explicit config takes precedence; else infer from available keys
         litellm_model = os.getenv('LITELLM_MODEL', '').strip()
@@ -960,7 +971,7 @@ class Config:
         if not llm_model_list:
             llm_model_list = cls._legacy_keys_to_model_list(
                 gemini_api_keys, anthropic_api_keys, openai_api_keys,
-                os.getenv('OPENAI_BASE_URL') or (
+                openai_base_url_env or (
                     'https://aihubmix.com/v1' if os.getenv('AIHUBMIX_KEY') else None
                 ),
                 deepseek_api_keys,
@@ -1247,6 +1258,7 @@ class Config:
             https_proxy=os.getenv('HTTPS_PROXY'),
             schedule_enabled=os.getenv('SCHEDULE_ENABLED', 'false').lower() == 'true',
             schedule_time=os.getenv('SCHEDULE_TIME', '18:00'),
+            schedule_timezone=(os.getenv('SCHEDULE_TIMEZONE', '') or '').strip(),
             schedule_run_immediately=schedule_run_immediately,
             run_immediately=legacy_run_immediately,
             market_review_enabled=os.getenv('MARKET_REVIEW_ENABLED', 'true').lower() == 'true',
