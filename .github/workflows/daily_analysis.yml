@@ -11,8 +11,8 @@ on:
       mode:
         description: '运行模式'
         required: true
-        默认: 'stocks-only'
-        输入: choice
+        default: 'stocks-only'
+        type: choice
         options:
           - full          # 完整分析（股票+大盘）
           - market-only   # 仅大盘复盘
@@ -20,8 +20,8 @@ on:
       force_run:
         description: '强制运行（跳过交易日检查）'
         required: false
-        默认: false
-        输入: boolean
+        default: false
+        type: boolean
 
 # 并发控制：同一时间只运行一个分析任务
 concurrency:
